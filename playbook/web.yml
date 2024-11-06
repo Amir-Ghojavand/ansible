@@ -1,0 +1,7 @@
+---
+
+- name: web (install and configure web)
+  hosts: web
+  roles:
+    - nginx
+    - app

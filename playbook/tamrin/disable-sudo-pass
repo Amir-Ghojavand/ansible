@@ -1,0 +1,10 @@
+- name: disable sudo root password
+  hosts: all
+  become: yes
+  tasks:
+    - name: change sudo_config 
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: debian  ALL=(ALL:ALL) NOPASSWD:ALL
+        create: yes
+      become: true

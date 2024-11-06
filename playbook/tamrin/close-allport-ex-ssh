@@ -1,0 +1,30 @@
+- name: update servers
+  hosts: all
+  become: yes
+  tasks:
+    - name: install ufw
+      ansible.builtin.apt:
+        name: ufw
+        update_cache: yes
+
+    - name: Allow everything and enable UFW
+      community.general.ufw:
+        state: enabled
+        policy: allow   
+    - community.general.ufw:
+        rule: reject
+        port: auth
+        log: true
+    - community.general.ufw:
+        rule: limit
+        port: ssh
+        proto: tcp
+    - name: Delete OpenSSH rule
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+        delete: true
+    - name: Deny all access to port 22
+      community.general.ufw:
+        rule: deny
+        port: 22

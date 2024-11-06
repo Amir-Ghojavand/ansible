@@ -1,0 +1,123 @@
+---
+- name: Install elasticsearch via docker
+  hosts: elasticsearch_hosts
+  become: yes
+  tasks:
+    - name: Install required system packages
+      apt:
+        name:
+          - python3-pip
+          - python3-setuptools
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Python module
+      pip:
+        name: 
+          - docker
+          - docker-compose
+        state: present
+        executable: pip3
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create elasticsearch directory
+      file:
+        path: "/opt/elasticsearch"
+        state: directory
+        mode: '0755'
+
+    - name: Create Docker Compose file
+      copy:
+        dest: "/opt/elasticsearch/docker-compose.yml"
+        content: |
+          version: '3.8'
+          
+          services:
+            es01:
+              image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+              container_name: es01
+              environment:
+                - node.name: host-2
+                - cluster.name: my-cluster
+                - discovery.seed_hosts: [172.20.20.30:9200, 172.20.20.191:9200]
+                - node.roles: [master, data]
+                - xpack.security.enabled: false
+                - xpack.security.enrollment.enabled: false
+                - network.host: 0.0.0.0
+              volumes:
+                - ./elasticsearch/node1/data:/usr/share/elasticsearch/data
+                - ./elasticsearch/node1/logs:/usr/share/elasticsearch/logs
+                - ./elasticsearch/node1/plugins:/usr/share/elasticsearch/plugins
+              networks:
+                elastic:
+                  ipv4_address: 172.20.20.30
+              healthcheck:
+                test: curl --cacert $CERTS_DIR/ca/ca.crt -s https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+                interval: 30s
+                timeout: 10s
+                retries: 5
+
+            es02:
+              image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+              container_name: es02
+              environment:
+                - node.name: host-1
+                - cluster.name: my-cluster
+                - discovery.seed_hosts: [172.20.20.30:9200, 172.20.20.191:9200]
+                - node.roles: [data]
+                - xpack.security.enabled: false
+                - xpack.security.enrollment.enabled: false
+                - network.host: 0.0.0.0
+              volumes:
+                - ./elasticsearch/node2/data:/usr/share/elasticsearch/data
+                - ./elasticsearch/node2/logs:/usr/share/elasticsearch/logs
+                - ./elasticsearch/node2/plugins:/usr/share/elasticsearch/plugins
+              networks:
+                elastic:
+                  ipv4_address: 172.20.20.191
+              healthcheck:
+                test: curl --cacert $CERTS_DIR/ca/ca.crt -s https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+                interval: 30s
+                timeout: 10s
+                retries: 5
+
+            kibana:
+              image: docker.elastic.co/kibana/kibana:8.15.0
+              container_name: kibana
+              environment:
+                - ELASTICSEARCH_HOSTS: [http://172.20.20.30:9200,http://172.20.20.191:9200]
+                - SERVER_NAME: kibana.local
+                - SERVER_HOST: 0.0.0.0
+                - XPACK_SECURITY_ENABLED: false
+                - ELASTICSEARCH_SSL_VERIFICATIONMODE: none
+              ports:
+                - "5601:5601"
+              depends_on:
+                - es01
+                - es02
+              volumes:
+                - ./kibana/data:/usr/share/kibana/data
+                - ./kibana/logs:/usr/share/kibana/logs
+                - ./kibana/plugins:/usr/share/kibana/plugins
+              networks:
+                elastic:
+                  ipv4_address: 172.20.20.13
+
+          networks:
+            elastic:
+              driver: bridge
+              ipam:
+                config:
+                  - subnet: 172.20.20.0/24
+
+    - name: Deploy Docker Compose stack
+      community.docker.docker_compose:
+        project_src: /opt/elasticsearch
+        state: present

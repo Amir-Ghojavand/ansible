@@ -1,0 +1,6 @@
+---
+
+- name: db
+  hosts: db
+  roles:
+    -mysql

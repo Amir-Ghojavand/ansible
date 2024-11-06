@@ -1,0 +1,4 @@
+- name: install elastic searhc
+  hosts: nodes
+  roles:
+    - role: elastic.elasticsearch

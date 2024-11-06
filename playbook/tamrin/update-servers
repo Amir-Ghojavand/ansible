@@ -1,0 +1,9 @@
+- name: update servers
+  hosts: all
+  become: yes
+  tasks:
+      - name: update repo 
+        apt:
+         update: yes
+         upgrade: yes
+         update_cache: yes

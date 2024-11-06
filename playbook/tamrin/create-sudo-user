@@ -1,0 +1,10 @@
+- name: create sudo user
+  hosts: all
+  become: yes
+  tasks:
+    - name: create tamrin sudo user
+      ansible.builtin.user:
+        name: tmarin-sudo
+        shell: /bin/bash
+        groups: sudo
+        append: yes

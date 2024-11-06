@@ -1,0 +1,35 @@
+- name: change ssh port
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: check port 2222
+      wait_for:
+        port: 2222
+        state: started
+      delegate_to: localhost
+      ignore_errors: yes
+      register: ssh_port
+
+    - name: check port 22
+      wait_for: 
+        port: 22
+        state: started
+      delegate_to: localhost
+      ignore_errors: yes
+      register: ssh_port_default
+      when: 
+        - ssh_port is defined 
+        - ssh_port.state is undefined
+
+    - name: change ssh_config 
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/ssh_config
+        regexp: '^#?Port '
+        line: 'Port 2222'
+      become: true
+
+    - name: restart sshd
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+      become: true
